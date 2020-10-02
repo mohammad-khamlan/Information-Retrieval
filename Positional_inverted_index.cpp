@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <map>
 #include <iterator>
+#include<json/writer.h>
 using namespace std;
 
 class Node {
@@ -21,9 +22,8 @@ public:
 };
 
 map<string, int> document;
-
-void remove_duplicates(std::vector<int> &v)
-{
+vector<string> word_json;
+void remove_duplicates(std::vector<int> &v){
     auto end = v.end();
     for (auto it = v.begin(); it != end; ++it) {
         end = std::remove(it + 1, end, *it);
@@ -79,7 +79,7 @@ Node* read_clean_data(vector <string> stop_words){
                 }
                 //-----------------------------------------------------------------------
 
-                //check if is it a stop words.-------------------------------------------
+                //check if it's a stop words.-------------------------------------------
                 int flag = 0;
                 for(int i = 0; i < stop_words.size(); i++) {
                     transform(stop_words[i].begin(), stop_words[i].end(), stop_words[i].begin(),[](unsigned char c) { return std::tolower(c); });
@@ -90,14 +90,16 @@ Node* read_clean_data(vector <string> stop_words){
                 }
                     //-----------------------------------------------------
 
+                    //add word,document_id,position to the linked list.
                     if(flag == 0) {
+                        transform(word.begin(), word.end(), word.begin(),[](unsigned char c){ return std::tolower(c); });
+                        word_json.push_back(word);
                         Node *next_node = new Node();
                         if (head == NULL) {
                             Node *first = new Node();
                             first->docid = docid;
                             first->position = position;
                             position++;
-                            transform(word.begin(), word.end(), word.begin(),[](unsigned char c){ return std::tolower(c); });
                             first->word = word;
                             first->next = next_node;
                             tail = first->next;
@@ -138,12 +140,14 @@ vector <string> read_stop_words(){
 
 
 vector<string> take_phrase(vector<string> stop_words){
+    //read phrase from terminal.
     string phrase;
     cout<<"Please enter phrase to search: "<<endl;
     getline(cin, phrase);
+    //tramsform phrase to lower_case.
+    transform(phrase.begin(), phrase.end(), phrase.begin(),[](unsigned char c){ return std::tolower(c); });
 
-
-    //split phrase to words
+    //split phrase to words and clean it.
     vector <string> words;
     string word;
     for ( char ch : phrase){
@@ -171,18 +175,17 @@ vector<string> take_phrase(vector<string> stop_words){
 vector<string> query_phrase(Node* head, vector<string> phrase){
     Node* pointer = head;
     vector<int> exist;
-
+    //search in documents about phrase.
     while(pointer->next != NULL) {
             if (pointer->word == phrase[0] && pointer->next->word == phrase[1] && pointer->docid == pointer->next->docid){
                 exist.push_back(pointer->docid);
-                pointer = pointer->next;
             }
-            else{
-                pointer = pointer->next;
-            }
+            pointer = pointer->next;
+
     }
 
     remove_duplicates(exist);
+    //find the path of the documents from the map.
     map<string, int>::iterator itr;
     vector<string> paths;
     for (itr = document.begin(); itr != document.end(); ++itr) {
@@ -194,16 +197,34 @@ vector<string> query_phrase(Node* head, vector<string> phrase){
         return paths;
 }
 
+//collect data to write in json file.
+void to_json(Node* head){
+    auto end = word_json.end();
+    for (auto it = word_json.begin(); it != end; ++it) {
+        end = std::remove(it + 1, end, *it);
+    }
+    word_json.erase(end, word_json.end());
+
+    for(string i: word_json)
+        cout<<i<<endl;
+}
 
 int main(void) {
+    //take stop words from txt file.
     vector <string> stop_words = read_stop_words();
+    //read,clean and store words from all documents.
     Node* head_inverted_index = read_clean_data(stop_words);
+    //take phrase from the user and clean it.
     vector<string> phrase = take_phrase(stop_words);
+    //find the document that contains tha phrase and return their paths.
     vector<string> result = query_phrase(head_inverted_index, phrase);
 
+    cout<<"Paths for your phrase: "<<endl;
     for(string i : result)
         cout<<i<<endl;
 
+   // Json::Value event;
+    //Json::Value vec(Json::arrayValue);
 
 
 return 0;
